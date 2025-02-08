@@ -41,47 +41,76 @@ class CPTTestWindow:
         
         self.running = False
         self.responses = []
+        self.omissions = 0
+        self.commissions = 0
+        self.response_received = False
+        self.current_stimulus = ""
         self.stimulus_time = None
 
     def start_test(self):
         self.start_button.pack_forget()  # Ocultar el botón al iniciar el test
         self.running = True
         self.responses.clear()
+        self.omissions = 0
+        self.commissions = 0
         
         self.test_thread = Thread(target=self.run_test)
         self.test_thread.start()
     
     def run_test(self):
         start_time = time.time()
-        duration = 3  # 3 minutos 180
+        duration = 180  # 3 minutos
         
         while time.time() - start_time < duration:
             letter = random.choice(["X", "A", "B", "C", "D"])
+            self.current_stimulus = letter
+            self.response_received = False
             self.stimulus_time = time.time()
             self.stimulus_label.config(text=letter)
-            time.sleep(random.uniform(1, 3))  # Intervalo variable entre estímulos
+            interval = random.uniform(1, 3)
+            time.sleep(interval)  # Intervalo variable entre estímulos
+            
+            # Verificar omisión: si el estímulo era objetivo y no se recibió respuesta
+            if letter == "X" and not self.response_received:
+                self.omissions += 1
         
         self.running = False
         self.stimulus_label.config(text="Fin del test")
         self.show_results()
     
     def record_response(self, event):
-        if self.running and self.stimulus_label.cget("text") == "X":
+        if not self.running:
+            return
+        if self.response_received:
+            return
+        
+        # Si se responde:
+        if self.current_stimulus == "X":
             reaction_time = time.time() - self.stimulus_time
             self.responses.append(reaction_time)
+            self.response_received = True
+        else:
+            # Responder cuando el estímulo no es el objetivo: comisión
+            self.commissions += 1
+            self.response_received = True
     
     def show_results(self):
         avg_reaction_time = sum(self.responses) / len(self.responses) if self.responses else 0
-        result_text = f"Tiempo de reacción promedio: {avg_reaction_time:.3f} s"
+        result_text = (f"Tiempo de reacción promedio: {avg_reaction_time:.3f} s\n"
+                       f"Omisiones: {self.omissions}\n"
+                       f"Comisiones: {self.commissions}")
         tk.Label(self.container, text=result_text, font=("Arial", 14), fg="white", bg="black").pack(pady=10)
-        self.save_results(avg_reaction_time)
+        self.save_results(avg_reaction_time, self.omissions, self.commissions)
         self.end_button.pack(pady=20)  # Mostrar el botón al finalizar el test
     
-    def save_results(self, avg_reaction_time):
+    def save_results(self, avg_reaction_time, omissions, commissions):
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tiempo_reaccion FLOAT;")
-        cursor.execute("UPDATE usuarios SET tiempo_reaccion = %s WHERE ci = %s;", (avg_reaction_time, "12345678"))  # Ajustar con CI real
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS omisiones INT;")
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS comisiones INT;")
+        cursor.execute("UPDATE usuarios SET tiempo_reaccion = %s, omisiones = %s, comisiones = %s WHERE ci = %s;",
+                       (avg_reaction_time, omissions, commissions, "12345678"))  # Ajustar con CI real
         conn.commit()
         cursor.close()
         conn.close()
