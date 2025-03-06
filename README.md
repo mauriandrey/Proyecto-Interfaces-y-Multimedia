@@ -11,7 +11,7 @@ Este proyecto implementa un sistema basado en visión por computadora para el mo
 - 💾Almacenamiento de datos en una base de datos PostgreSQL.
 - 📂Estructura modular para la ejecución de actividades secuenciales.
 
-##🛠️ Tecnologías Utilizadas
+## 🛠️ Tecnologías Utilizadas
 - 🖥️**Lenguaje**: Python 3.10.0
 - 📚**Bibliotecas**: OpenCV, MediaPipe, Tkinter, Psycopg2, Numpy.
 - 🗄️**Base de Datos**: PostgreSQL
